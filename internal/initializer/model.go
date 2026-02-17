@@ -38,11 +38,11 @@ type model struct {
 
 func newModel(st *state) *model {
 	steps := []step{
-		{name: "Clone template repository", action: func() error { return cloneTemplate(st.ProjectDir) }},
-		{name: "Remove template .git metadata", action: func() error { return removeTemplateGitMetadata(st.ProjectDir) }},
-		{name: "Rewrite module path", action: func() error { return rewriteModulePath(st.ProjectDir, st.ModulePath) }},
-		{name: "Initialize new Git repository (master)", action: func() error { return reinitializeGitRepository(st.ProjectDir) }},
-		{name: "Run go mod tidy", action: func() error { return tidyGoModule(st.ProjectDir) }},
+		{name: "克隆模板仓库", action: func() error { return cloneTemplate(st.ProjectDir) }},
+		{name: "移除模板 .git 历史", action: func() error { return removeTemplateGitMetadata(st.ProjectDir) }},
+		{name: "替换模块路径", action: func() error { return rewriteModulePath(st.ProjectDir, st.ModulePath) }},
+		{name: "重新初始化 Git 仓库（master）", action: func() error { return reinitializeGitRepository(st.ProjectDir) }},
+		{name: "执行 go mod tidy", action: func() error { return tidyGoModule(st.ProjectDir) }},
 	}
 
 	statuses := make([]stepStatus, len(steps))
@@ -71,7 +71,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			if !m.finished {
-				m.err = errors.New("initialization cancelled")
+				m.err = errors.New("初始化已取消")
 				if m.current >= 0 && m.current < len(m.statuses) && m.statuses[m.current] == statusRunning {
 					m.statuses[m.current] = statusFailed
 				}
@@ -103,7 +103,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) View() string {
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("Bamboo initializing: %s\n\n", m.state.ModulePath))
+	builder.WriteString(fmt.Sprintf("Bamboo 正在初始化：%s\n\n", m.state.ModulePath))
 
 	for index, item := range m.steps {
 		icon := "[ ]"
@@ -119,16 +119,16 @@ func (m *model) View() string {
 	}
 
 	if m.err != nil {
-		builder.WriteString(fmt.Sprintf("\nFailed: %v\n", m.err))
+		builder.WriteString(fmt.Sprintf("\n失败：%v\n", m.err))
 		return builder.String()
 	}
 
 	if m.finished {
-		builder.WriteString(fmt.Sprintf("\nDone.\nProject directory: %s\n", m.state.ProjectDir))
+		builder.WriteString(fmt.Sprintf("\n完成。\n项目目录：%s\n", m.state.ProjectDir))
 		return builder.String()
 	}
 
-	builder.WriteString("\nPress Ctrl+C to cancel.\n")
+	builder.WriteString("\n按 Ctrl+C 可取消。\n")
 	return builder.String()
 }
 

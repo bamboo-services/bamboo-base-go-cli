@@ -15,13 +15,13 @@ import (
 
 func cloneTemplate(projectDir string) error {
 	if _, err := os.Stat(projectDir); err == nil {
-		return fmt.Errorf("target directory already exists: %s", projectDir)
+		return fmt.Errorf("目标目录已存在：%s", projectDir)
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("failed to check target directory: %w", err)
+		return fmt.Errorf("检查目标目录失败：%w", err)
 	}
 
 	if err := runCommand("", "git", "clone", "--depth=1", templateRepoURL, projectDir); err != nil {
-		return fmt.Errorf("clone template repository failed: %w", err)
+		return fmt.Errorf("克隆模板仓库失败：%w", err)
 	}
 
 	return nil
@@ -30,7 +30,7 @@ func cloneTemplate(projectDir string) error {
 func removeTemplateGitMetadata(projectDir string) error {
 	gitDir := filepath.Join(projectDir, ".git")
 	if err := os.RemoveAll(gitDir); err != nil {
-		return fmt.Errorf("remove template .git directory failed: %w", err)
+		return fmt.Errorf("删除模板 .git 目录失败：%w", err)
 	}
 	return nil
 }
@@ -52,7 +52,7 @@ func rewriteModulePath(projectDir string, modulePath string) error {
 
 		content, err := os.ReadFile(filePath)
 		if err != nil {
-			return fmt.Errorf("read %s failed: %w", filePath, err)
+			return fmt.Errorf("读取文件失败（%s）：%w", filePath, err)
 		}
 
 		updated := bytes.ReplaceAll(content, []byte(templateModule), []byte(modulePath))
@@ -62,11 +62,11 @@ func rewriteModulePath(projectDir string, modulePath string) error {
 
 		fileInfo, err := os.Stat(filePath)
 		if err != nil {
-			return fmt.Errorf("stat %s failed: %w", filePath, err)
+			return fmt.Errorf("获取文件信息失败（%s）：%w", filePath, err)
 		}
 
 		if err := os.WriteFile(filePath, updated, fileInfo.Mode().Perm()); err != nil {
-			return fmt.Errorf("write %s failed: %w", filePath, err)
+			return fmt.Errorf("写入文件失败（%s）：%w", filePath, err)
 		}
 
 		return nil
@@ -79,12 +79,12 @@ func reinitializeGitRepository(projectDir string) error {
 	}
 
 	if err := runCommand(projectDir, "git", "init"); err != nil {
-		return fmt.Errorf("initialize git repository failed: %w", err)
+		return fmt.Errorf("初始化 git 仓库失败：%w", err)
 	}
 
 	if err := runCommand(projectDir, "git", "symbolic-ref", "HEAD", "refs/heads/master"); err != nil {
 		if renameErr := runCommand(projectDir, "git", "branch", "-M", "master"); renameErr != nil {
-			return fmt.Errorf("set git default branch to master failed: %w", err)
+			return fmt.Errorf("设置 git 默认分支为 master 失败：%w", err)
 		}
 	}
 
@@ -93,7 +93,7 @@ func reinitializeGitRepository(projectDir string) error {
 
 func tidyGoModule(projectDir string) error {
 	if err := runCommand(projectDir, "go", "mod", "tidy"); err != nil {
-		return fmt.Errorf("run go mod tidy failed: %w", err)
+		return fmt.Errorf("执行 go mod tidy 失败：%w", err)
 	}
 	return nil
 }
@@ -139,18 +139,18 @@ func runCommand(dir string, name string, args ...string) error {
 		combinedOutput := strings.TrimSpace(strings.Join(append(status.Stderr, status.Stdout...), "\n"))
 		if combinedOutput == "" {
 			if status.Error != nil {
-				return fmt.Errorf("%s %s failed: %w", name, strings.Join(args, " "), status.Error)
+				return fmt.Errorf("命令执行失败：%s %s：%w", name, strings.Join(args, " "), status.Error)
 			}
-			return fmt.Errorf("%s %s failed with exit code %d", name, strings.Join(args, " "), status.Exit)
+			return fmt.Errorf("命令执行失败：%s %s，退出码 %d", name, strings.Join(args, " "), status.Exit)
 		}
 
 		if status.Error != nil {
-			return fmt.Errorf("%s %s failed: %w: %s", name, strings.Join(args, " "), status.Error, combinedOutput)
+			return fmt.Errorf("命令执行失败：%s %s：%w：%s", name, strings.Join(args, " "), status.Error, combinedOutput)
 		}
 
-		return fmt.Errorf("%s %s failed with exit code %d: %s", name, strings.Join(args, " "), status.Exit, combinedOutput)
+		return fmt.Errorf("命令执行失败：%s %s，退出码 %d：%s", name, strings.Join(args, " "), status.Exit, combinedOutput)
 	case <-time.After(timeout):
 		_ = cmd.Stop()
-		return fmt.Errorf("%s %s timed out", name, strings.Join(args, " "))
+		return fmt.Errorf("命令执行超时：%s %s", name, strings.Join(args, " "))
 	}
 }

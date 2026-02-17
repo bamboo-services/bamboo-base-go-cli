@@ -34,7 +34,7 @@ func Run(modulePath string, workDir string) error {
 
 	m, ok := finalModel.(*model)
 	if !ok {
-		return errors.New("internal error: unexpected final tui model type")
+		return errors.New("内部错误：TUI 最终模型类型不匹配")
 	}
 
 	if m.err != nil {
@@ -53,7 +53,7 @@ func newState(modulePath string, workDir string) (*state, error) {
 	projectName := path.Base(modulePath)
 	projectName = strings.TrimSuffix(projectName, ".git")
 	if projectName == "." || projectName == "/" || projectName == "" {
-		return nil, fmt.Errorf("invalid package name: %q", modulePath)
+		return nil, fmt.Errorf("无效的包名：%q", modulePath)
 	}
 
 	projectDir := filepath.Join(workDir, projectName)
@@ -65,24 +65,24 @@ func newState(modulePath string, workDir string) (*state, error) {
 
 func validateModulePath(modulePath string) error {
 	if modulePath == "" {
-		return errors.New("package name is required")
+		return errors.New("包名不能为空")
 	}
 	if strings.Contains(modulePath, " ") {
-		return fmt.Errorf("package name must not include spaces: %q", modulePath)
+		return fmt.Errorf("包名不能包含空格：%q", modulePath)
 	}
 	if strings.HasPrefix(modulePath, "/") || strings.HasSuffix(modulePath, "/") {
-		return fmt.Errorf("package name must not start or end with '/': %q", modulePath)
+		return fmt.Errorf("包名不能以 '/' 开头或结尾：%q", modulePath)
 	}
 	parts := strings.Split(modulePath, "/")
 	if len(parts) < 2 {
-		return fmt.Errorf("package name must look like host/path, got: %q", modulePath)
+		return fmt.Errorf("包名格式应为 host/path，当前为：%q", modulePath)
 	}
 	if !strings.Contains(parts[0], ".") {
-		return fmt.Errorf("package name must include a host in the first segment, got: %q", modulePath)
+		return fmt.Errorf("包名第一段应包含主机名，当前为：%q", modulePath)
 	}
 	for _, part := range parts {
 		if part == "" {
-			return fmt.Errorf("package name contains an empty path segment: %q", modulePath)
+			return fmt.Errorf("包名包含空路径段：%q", modulePath)
 		}
 	}
 
