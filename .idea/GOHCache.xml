@@ -10,6 +10,13 @@
             </set>
           </value>
         </entry>
+        <entry key="reg">
+          <value>
+            <set>
+              <option value="file://$PROJECT_DIR$/../../phalanx/beacon-bucket/internal/app/startup/startup.go" />
+            </set>
+          </value>
+        </entry>
         <entry key="state">
           <value>
             <set>
@@ -82,11 +89,73 @@
             </ScannedPath>
           </value>
         </entry>
+        <entry key="file://$PROJECT_DIR$/../../phalanx/beacon-bucket/beacon-bucket/internal/app/startup/startup_aws.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771397627369" />
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/../../phalanx/beacon-bucket/internal/app/startup/startup.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771401271822" />
+              <option name="schema">
+                <list>
+                  <option value="reg" />
+                </list>
+              </option>
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/../../phalanx/beacon-bucket/internal/app/startup/startup_aws.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771401404877" />
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/../../phalanx/beacon-bucket/internal/constant/context.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771401072819" />
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/../../phalanx/beacon-bucket/internal/constant/environment.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771400523971" />
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/../../phalanx/beacon-bucket/internal/entity/bucket.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771401465188" />
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/../../phalanx/beacon-bucket/utility/context.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771398999308" />
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/../../phalanx/beacon-bucket/utility/context/aws.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771401208736" />
+            </ScannedPath>
+          </value>
+        </entry>
       </map>
     </option>
     <option name="tableStructMapping">
       <map>
         <entry key="model" value="model" />
+        <entry key="reg" value="reg" />
         <entry key="state" value="state" />
         <entry key="step" value="step" />
         <entry key="step_done_msg" value="stepDoneMsg" />
