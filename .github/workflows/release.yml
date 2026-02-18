@@ -8,153 +8,33 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+  goreleaser:
+    name: Build and upload release assets
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-          - goos: windows
-            goarch: amd64
-          - goos: windows
-            goarch: arm64
-          - goos: freebsd
-            goarch: amd64
-      fail-fast: false
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
 
-      - name: Extract version
-        id: version
-        shell: bash
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
-
-      - name: Build binary
-        shell: bash
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: |
-          EXT=""
-          if [ "$GOOS" = "windows" ]; then
-            EXT=".exe"
-          fi
-          BINARY_NAME="bamboo-base-cli-${GOOS}-${GOARCH}${EXT}"
-          export CGO_ENABLED=0
-          go build -trimpath -ldflags="-s -w" -o "$BINARY_NAME" .
-          echo "Built: $BINARY_NAME"
-          ls -lh "$BINARY_NAME"
-
-      - name: Generate checksum
-        shell: bash
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: |
-          EXT=""
-          if [ "$GOOS" = "windows" ]; then
-            EXT=".exe"
-          fi
-          BINARY_NAME="bamboo-base-cli-${GOOS}-${GOARCH}${EXT}"
-          sha256sum "$BINARY_NAME" > "checksum-${GOOS}-${GOARCH}.txt"
-          cat "checksum-${GOOS}-${GOARCH}.txt"
-
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
         with:
-          name: binary-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: bamboo-base-cli-*
-          if-no-files-found: error
-
-      - name: Upload checksum artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: checksum-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: checksum-*.txt
-          if-no-files-found: error
-
-  checksum:
-    name: Generate checksums file
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download all checksum artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: checksum-*
-          merge-multiple: true
-
-      - name: Merge checksums
-        run: |
-          cat checksum-*.txt | sort > checksums.txt
-          cat checksums.txt
-
-      - name: Upload checksums artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: checksums
-          path: checksums.txt
-          if-no-files-found: error
-
-  upload:
-    name: Upload release assets
-    needs: [build, checksum]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code (for scripts)
-        uses: actions/checkout@v4
-
-      - name: Download all binary artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: binary-*
-          merge-multiple: true
-
-      - name: Download checksums
-        uses: actions/download-artifact@v4
-        with:
-          name: checksums
-
-      - name: List all files
-        run: ls -lh
-
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            bamboo-base-cli-*
-            checksums.txt
-            scripts/install.sh
-            scripts/install.ps1
-            scripts/uninstall.sh
-            scripts/uninstall.ps1
-          generate_release_notes: true
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   update-homebrew:
     name: Update Homebrew Formula
-    needs: upload
+    needs: goreleaser
     runs-on: ubuntu-latest
     continue-on-error: true
 
