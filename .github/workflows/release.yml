@@ -17,11 +17,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: refs/tags/${{ github.event.release.tag_name }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
+
+      - name: Verify checkout tag
+        run: |
+          EXPECTED_TAG='${{ github.event.release.tag_name }}'
+          ACTUAL_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+          if [ "$ACTUAL_TAG" != "$EXPECTED_TAG" ]; then
+            echo "::error::Checked-out ref mismatch. expected=$EXPECTED_TAG actual=${ACTUAL_TAG:-<empty>}"
+            exit 1
+          fi
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
@@ -42,10 +52,22 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          TAG_NAME='${{ github.event.release.tag_name }}'
+          if [ -z "$TAG_NAME" ]; then
+            echo "::error::Missing release tag name from github.event.release.tag_name"
+            exit 1
+          fi
+
+          VERSION=${TAG_NAME#v}
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid release tag: $TAG_NAME"
+            exit 1
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           CLASS_SUFFIX=$(echo "$VERSION" | tr -d '.')
           echo "class_suffix=$CLASS_SUFFIX" >> $GITHUB_OUTPUT
+          echo "Release tag: $TAG_NAME"
           echo "Updating Homebrew Formula to version: $VERSION"
 
       - name: Checkout homebrew-tap repository
@@ -174,10 +196,16 @@ jobs:
           sed -i 's/class LlmMemory < Formula/class BambooBaseCli < Formula/' "$FORMULA_FILE"
           sed -i 's/class BambooBaseCliAT[0-9]\+ < Formula/class BambooBaseCli < Formula/' "$FORMULA_FILE"
 
-          if grep -q '^  version "[0-9]\+\.[0-9]\+\.[0-9]\+"' "$FORMULA_FILE"; then
-            sed -i 's/^  version "[0-9]*\.[0-9]*\.[0-9]*"/  version "'"$VERSION"'"/' "$FORMULA_FILE"
+          if grep -qE '^[[:space:]]+version "[0-9]+\.[0-9]+\.[0-9]+"' "$FORMULA_FILE"; then
+            sed -i -E 's/^[[:space:]]+version "[0-9]+\.[0-9]+\.[0-9]+"/  version "'"$VERSION"'"/' "$FORMULA_FILE"
           else
-            sed -i '/^  homepage ".*"/a\  version "'"$VERSION"'"' "$FORMULA_FILE"
+            sed -i '/^[[:space:]]*homepage ".*"/a\  version "'"$VERSION"'"' "$FORMULA_FILE"
+          fi
+
+          ACTUAL_VERSION=$(grep -oE 'version "[0-9]+\.[0-9]+\.[0-9]+"' "$FORMULA_FILE" | head -n 1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+          if [ "$ACTUAL_VERSION" != "$VERSION" ]; then
+            echo "::error::Version update verification failed. expected=$VERSION actual=${ACTUAL_VERSION:-<empty>}"
+            exit 1
           fi
 
       - name: Commit and push changes
