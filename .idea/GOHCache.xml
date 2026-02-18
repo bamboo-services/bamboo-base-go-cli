@@ -1,6 +1,97 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="GoORMHelperCache">
+    <option name="schemaMapping">
+      <map>
+        <entry key="model">
+          <value>
+            <set>
+              <option value="file://$PROJECT_DIR$/internal/initializer/model.go" />
+            </set>
+          </value>
+        </entry>
+        <entry key="state">
+          <value>
+            <set>
+              <option value="file://$PROJECT_DIR$/internal/initializer/init.go" />
+            </set>
+          </value>
+        </entry>
+        <entry key="step">
+          <value>
+            <set>
+              <option value="file://$PROJECT_DIR$/internal/initializer/model.go" />
+            </set>
+          </value>
+        </entry>
+        <entry key="stepDoneMsg">
+          <value>
+            <set>
+              <option value="file://$PROJECT_DIR$/internal/initializer/model.go" />
+            </set>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="scannedPathMapping">
+      <map>
+        <entry key="file://$PROJECT_DIR$/internal/cli/cli.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771339932046" />
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/internal/initializer/init.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771339950205" />
+              <option name="schema">
+                <list>
+                  <option value="state" />
+                </list>
+              </option>
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/internal/initializer/model.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771339969569" />
+              <option name="schema">
+                <list>
+                  <option value="step" />
+                  <option value="stepDoneMsg" />
+                  <option value="model" />
+                </list>
+              </option>
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/internal/initializer/steps.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771339995775" />
+            </ScannedPath>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/main.go">
+          <value>
+            <ScannedPath>
+              <option name="lastModified" value="1771308289080" />
+            </ScannedPath>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="tableStructMapping">
+      <map>
+        <entry key="model" value="model" />
+        <entry key="state" value="state" />
+        <entry key="step" value="step" />
+        <entry key="step_done_msg" value="stepDoneMsg" />
+      </map>
+    </option>
     <option name="lastTimeChecked" value="1771307608340" />
   </component>
 </project>

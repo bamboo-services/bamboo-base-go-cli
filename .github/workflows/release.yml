@@ -1,0 +1,335 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+          - goos: freebsd
+            goarch: amd64
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Build binary
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          EXT=""
+          if [ "$GOOS" = "windows" ]; then
+            EXT=".exe"
+          fi
+          BINARY_NAME="bamboo-base-cli-${GOOS}-${GOARCH}${EXT}"
+          export CGO_ENABLED=0
+          go build -trimpath -ldflags="-s -w" -o "$BINARY_NAME" .
+          echo "Built: $BINARY_NAME"
+          ls -lh "$BINARY_NAME"
+
+      - name: Generate checksum
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          EXT=""
+          if [ "$GOOS" = "windows" ]; then
+            EXT=".exe"
+          fi
+          BINARY_NAME="bamboo-base-cli-${GOOS}-${GOARCH}${EXT}"
+          sha256sum "$BINARY_NAME" > "checksum-${GOOS}-${GOARCH}.txt"
+          cat "checksum-${GOOS}-${GOARCH}.txt"
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: bamboo-base-cli-*
+          if-no-files-found: error
+
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksum-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: checksum-*.txt
+          if-no-files-found: error
+
+  checksum:
+    name: Generate checksums file
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all checksum artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: checksum-*
+          merge-multiple: true
+
+      - name: Merge checksums
+        run: |
+          cat checksum-*.txt | sort > checksums.txt
+          cat checksums.txt
+
+      - name: Upload checksums artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: checksums.txt
+          if-no-files-found: error
+
+  upload:
+    name: Upload release assets
+    needs: [build, checksum]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code (for scripts)
+        uses: actions/checkout@v4
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          merge-multiple: true
+
+      - name: Download checksums
+        uses: actions/download-artifact@v4
+        with:
+          name: checksums
+
+      - name: List all files
+        run: ls -lh
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            bamboo-base-cli-*
+            checksums.txt
+            scripts/install.sh
+            scripts/install.ps1
+            scripts/uninstall.sh
+            scripts/uninstall.ps1
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew:
+    name: Update Homebrew Formula
+    needs: upload
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          CLASS_SUFFIX=$(echo "$VERSION" | tr -d '.')
+          echo "class_suffix=$CLASS_SUFFIX" >> $GITHUB_OUTPUT
+          echo "Updating Homebrew Formula to version: $VERSION"
+
+      - name: Checkout homebrew-tap repository
+        uses: actions/checkout@v4
+        with:
+          repository: XiaoLFeng/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Ensure main formula exists
+        working-directory: homebrew-tap
+        run: |
+          FORMULA_DIR="Formula/b"
+          FORMULA_FILE="${FORMULA_DIR}/bamboo-base-cli.rb"
+          mkdir -p "$FORMULA_DIR"
+
+          if [ ! -f "$FORMULA_FILE" ]; then
+            if curl -fsSL "https://raw.githubusercontent.com/XiaoLFeng/homebrew-tap/master/Formula/b/bamboo-base-cli.rb" -o "$FORMULA_FILE"; then
+              echo "Initialized from remote Formula/b/bamboo-base-cli.rb (master)"
+            elif curl -fsSL "https://raw.githubusercontent.com/XiaoLFeng/homebrew-tap/main/Formula/b/bamboo-base-cli.rb" -o "$FORMULA_FILE"; then
+              echo "Initialized from remote Formula/b/bamboo-base-cli.rb (main)"
+            elif curl -fsSL "https://raw.githubusercontent.com/XiaoLFeng/homebrew-tap/master/Formula/l/llm-memory.rb" -o "$FORMULA_FILE"; then
+              echo "Initialized from remote fallback Formula/l/llm-memory.rb"
+            else
+              cat > "$FORMULA_FILE" <<'EOF'
+              class BambooBaseCli < Formula
+                desc "Bamboo Base Go CLI installer"
+                homepage "https://github.com/bamboo-services/bamboo-base-go-cli"
+                version "0.0.0"
+                license "MIT"
+
+                on_macos do
+                  if Hardware::CPU.arm?
+                    url "https://github.com/bamboo-services/bamboo-base-go-cli/releases/download/v#{version}/bamboo-base-cli-darwin-arm64"
+                  else
+                    url "https://github.com/bamboo-services/bamboo-base-go-cli/releases/download/v#{version}/bamboo-base-cli-darwin-amd64"
+                  end
+                end
+
+                on_linux do
+                  if Hardware::CPU.arm?
+                    url "https://github.com/bamboo-services/bamboo-base-go-cli/releases/download/v#{version}/bamboo-base-cli-linux-arm64"
+                  else
+                    url "https://github.com/bamboo-services/bamboo-base-go-cli/releases/download/v#{version}/bamboo-base-cli-linux-amd64"
+                  end
+                end
+
+                def install
+                  if OS.mac?
+                    if Hardware::CPU.arm?
+                      bin.install "bamboo-base-cli-darwin-arm64" => "bamboo"
+                    else
+                      bin.install "bamboo-base-cli-darwin-amd64" => "bamboo"
+                    end
+                  elsif OS.linux?
+                    if Hardware::CPU.arm?
+                      bin.install "bamboo-base-cli-linux-arm64" => "bamboo"
+                    else
+                      bin.install "bamboo-base-cli-linux-amd64" => "bamboo"
+                    end
+                  end
+
+                  chmod 0755, bin/"bamboo"
+                end
+              end
+          EOF
+            fi
+          fi
+
+          sed -i 's|https://github.com/XiaoLFeng/llm-memory|https://github.com/bamboo-services/bamboo-base-go-cli|g' "$FORMULA_FILE"
+          sed -i 's/llm-memory/bamboo-base-cli/g' "$FORMULA_FILE"
+          sed -i 's/class LlmMemory < Formula/class BambooBaseCli < Formula/' "$FORMULA_FILE"
+
+      - name: Get old version
+        id: old_version
+        working-directory: homebrew-tap
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          FORMULA_FILE="Formula/b/bamboo-base-cli.rb"
+          OLD_VERSION=""
+          if [ -f "$FORMULA_FILE" ]; then
+            OLD_VERSION=$(grep -oP 'version "\K[0-9]+\.[0-9]+\.[0-9]+' "$FORMULA_FILE" | head -n 1 || true)
+          fi
+          if [ -z "$OLD_VERSION" ]; then
+            OLD_VERSION="$VERSION"
+          fi
+          echo "old_version=$OLD_VERSION" >> $GITHUB_OUTPUT
+          OLD_CLASS_SUFFIX=$(echo "$OLD_VERSION" | tr -d '.')
+          echo "old_class_suffix=$OLD_CLASS_SUFFIX" >> $GITHUB_OUTPUT
+          echo "Current version in Formula: $OLD_VERSION"
+
+      - name: Create versioned Formula for old version
+        working-directory: homebrew-tap
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          OLD_VERSION: ${{ steps.old_version.outputs.old_version }}
+          OLD_CLASS_SUFFIX: ${{ steps.old_version.outputs.old_class_suffix }}
+        run: |
+          VERSIONED_FILE="Formula/b/bamboo-base-cli@${OLD_VERSION}.rb"
+
+          if [ "$OLD_VERSION" = "$VERSION" ]; then
+            echo "Skip archive formula: old version equals current version ($VERSION)"
+            exit 0
+          fi
+
+          if [ -f "$VERSIONED_FILE" ]; then
+            echo "Versioned Formula already exists: $VERSIONED_FILE"
+            exit 0
+          fi
+
+          cp Formula/b/bamboo-base-cli.rb "$VERSIONED_FILE"
+          sed -i "s/class BambooBaseCli < Formula/class BambooBaseCliAT${OLD_CLASS_SUFFIX} < Formula/" "$VERSIONED_FILE"
+          sed -i "s/bamboo-base-cli 已成功安装/bamboo-base-cli@${OLD_VERSION} 已成功安装/" "$VERSIONED_FILE"
+          sed -i '/快速开始/i\      ⚠️  注意：这是一个固定版本的 Formula\n      - 此版本不会自动更新到更高版本\n      - 如需最新版本，请使用：brew install bamboo-base-cli\n' "$VERSIONED_FILE"
+
+      - name: Update main Formula version
+        working-directory: homebrew-tap
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          FORMULA_FILE="Formula/b/bamboo-base-cli.rb"
+
+          sed -i 's|https://github.com/XiaoLFeng/llm-memory|https://github.com/bamboo-services/bamboo-base-go-cli|g' "$FORMULA_FILE"
+          sed -i 's/llm-memory/bamboo-base-cli/g' "$FORMULA_FILE"
+          sed -i 's/class LlmMemory < Formula/class BambooBaseCli < Formula/' "$FORMULA_FILE"
+          sed -i 's/class BambooBaseCliAT[0-9]\+ < Formula/class BambooBaseCli < Formula/' "$FORMULA_FILE"
+
+          if grep -q '^  version "[0-9]\+\.[0-9]\+\.[0-9]\+"' "$FORMULA_FILE"; then
+            sed -i 's/^  version "[0-9]*\.[0-9]*\.[0-9]*"/  version "'"$VERSION"'"/' "$FORMULA_FILE"
+          else
+            sed -i '/^  homepage ".*"/a\  version "'"$VERSION"'"' "$FORMULA_FILE"
+          fi
+
+      - name: Commit and push changes
+        working-directory: homebrew-tap
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          OLD_VERSION: ${{ steps.old_version.outputs.old_version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "No changes to commit (version might already be up to date)"
+            exit 0
+          fi
+
+          git add Formula/b/
+
+          if [ -f "Formula/b/bamboo-base-cli@${OLD_VERSION}.rb" ] && git diff --cached --name-only | grep -q "bamboo-base-cli@"; then
+            git commit -m "chore(bamboo-base-cli): bump to v${VERSION}, archive v${OLD_VERSION}
+
+          - Update bamboo-base-cli.rb to version ${VERSION}
+          - Create bamboo-base-cli@${OLD_VERSION}.rb for version pinning
+
+          Automated update from bamboo-base-go-cli release workflow.
+          Release: https://github.com/bamboo-services/bamboo-base-go-cli/releases/tag/v${VERSION}"
+          else
+            git commit -m "chore(bamboo-base-cli): bump version to ${VERSION}
+
+          Automated update from bamboo-base-go-cli release workflow.
+          Release: https://github.com/bamboo-services/bamboo-base-go-cli/releases/tag/v${VERSION}"
+          fi
+
+          git push origin master
+          echo "✅ Successfully updated homebrew-tap!"

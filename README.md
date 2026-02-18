@@ -39,6 +39,48 @@ go run . init github.com/XiaoLFeng/hello
 
 执行完成后，会在当前目录生成 `hello/` 项目。
 
+## 脚本安装
+
+### Linux / macOS / FreeBSD
+
+安装最新版本：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bamboo-services/bamboo-base-go-cli/master/scripts/install.sh | bash
+```
+
+安装指定版本：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bamboo-services/bamboo-base-go-cli/master/scripts/install.sh | bash -s v0.0.1
+```
+
+卸载：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bamboo-services/bamboo-base-go-cli/master/scripts/uninstall.sh | bash
+```
+
+### Windows PowerShell
+
+安装最新版本：
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/bamboo-services/bamboo-base-go-cli/master/scripts/install.ps1 | iex
+```
+
+安装指定版本：
+
+```powershell
+& ([scriptblock]::Create((iwr -useb https://raw.githubusercontent.com/bamboo-services/bamboo-base-go-cli/master/scripts/install.ps1))) -Version v0.0.1
+```
+
+卸载：
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/bamboo-services/bamboo-base-go-cli/master/scripts/uninstall.ps1 | iex
+```
+
 ## 命令说明
 
 ### 查看帮助
